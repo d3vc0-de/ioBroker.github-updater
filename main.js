@@ -167,59 +167,42 @@ class GithubUpdater extends utils.Adapter {
     // -----------------------------------------------------------------------
 
     /**
-     * Scannt node_modules auf iobroker.*-Pakete und prüft deren package.json
-     * auf GitHub-Herkunft (_from / _resolved / repository).
-     * Das ist derselbe Mechanismus den adapter-core für "(non-npm: ...)" nutzt.
+     * Liest package-lock.json und extrahiert alle iobroker.*-Pakete
+     * deren resolved-URL auf github.com / codeload.github.com zeigt.
+     * npm 7+ schreibt _from/_resolved nicht mehr in package.json —
+     * package-lock.json ist die einzig zuverlässige Quelle.
      */
     async detectGithubAdapters() {
-        const exclude    = (this.config.excludeAdapters || '').split(',').map(s => s.trim()).filter(Boolean);
-        const modulesDir = path.join(this.iobRoot, 'node_modules');
-        const found      = new Map();
+        const exclude  = (this.config.excludeAdapters || '').split(',').map(s => s.trim()).filter(Boolean);
+        const lockPath = path.join(this.iobRoot, 'package-lock.json');
+        const found    = new Map();
 
-        let entries;
+        let lock;
         try {
-            entries = fs.readdirSync(modulesDir);
+            lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
         } catch (err) {
-            this.log.error(`Kann node_modules nicht lesen (${modulesDir}): ${err.message}`);
+            this.log.error(`Kann package-lock.json nicht lesen (${lockPath}): ${err.message}`);
             return [];
         }
 
-        for (const dir of entries) {
-            // Nur iobroker.*-Pakete
-            if (!dir.startsWith('iobroker.')) continue;
+        // lockfileVersion 2/3: Pakete stehen unter lock.packages["node_modules/name"]
+        const packages = lock.packages || {};
 
-            const pkgPath = path.join(modulesDir, dir, 'package.json');
-            if (!fs.existsSync(pkgPath)) continue;
+        for (const [key, meta] of Object.entries(packages)) {
+            // Nur direkte node_modules-Einträge für iobroker.*
+            if (!key.startsWith('node_modules/iobroker.')) continue;
 
-            let pkg;
-            try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')); }
-            catch { continue; }
-
-            // Adapter-Name: iobroker.name → name
-            const adapterName = dir.slice('iobroker.'.length);
+            const adapterName = key.slice('node_modules/iobroker.'.length);
+            // Keine verschachtelten node_modules (z.B. node_modules/x/node_modules/iobroker.y)
+            if (adapterName.includes('/')) continue;
             if (exclude.includes(adapterName)) continue;
 
-            // Quell-Felder die npm beim GitHub-Install setzt
-            const from     = pkg._from     || '';
-            const resolved = pkg._resolved || '';
-            // Fallback: repository.url im package.json (immer gesetzt, aber für alle Adapter)
-            const repoUrl  = (pkg.repository && typeof pkg.repository === 'object')
-                ? (pkg.repository.url || '') : (pkg.repository || '');
+            const resolved = meta.resolved || '';
+            this.log.debug(`${key}: resolved="${resolved}"`);
 
-            this.log.debug(`${dir}: _from="${from}" _resolved="${resolved}"`);
-
-            // Priorität: _from → _resolved → (repository nur wenn Version kein semver ist)
-            let repo = extractGithubRepo(from) || extractGithubRepo(resolved);
-
-            // Wenn weder _from noch _resolved gesetzt: Version enthält Git-Hash → non-npm
-            if (!repo && repoUrl.includes('github.com')) {
-                const isSemver = /^\d+\.\d+\.\d+$/.test(pkg.version || '');
-                if (!isSemver) {
-                    repo = extractGithubRepo(repoUrl);
-                }
-            }
-
+            const repo = extractGithubRepo(resolved);
             if (!repo) continue;
+
             found.set(adapterName, repo);
         }
 
