@@ -10,11 +10,13 @@ Adapters installed directly from GitHub (`iobroker url user/repo`) are invisible
 
 ## What this Adapter Does
 
-- Reads the installed version of each configured adapter from ioBroker's object database
-- Queries the GitHub API for the latest release, tag, or commit
+- Automatically detects all adapters that were installed from GitHub by reading the `installedFrom` field in each adapter's ioBroker object
+- Queries the GitHub API for the latest release, tag, or commit for each detected adapter
 - Compares versions using semver and exposes the result as ioBroker states
 - Sends an ioBroker notification when an update is available
 - Can trigger the update automatically or on demand via a button state
+
+No manual configuration of adapter names or repository URLs is needed.
 
 ---
 
@@ -33,30 +35,19 @@ iobroker url https://github.com/d3vc0-de/ioBroker.github-updater
 
 Open the adapter settings in the ioBroker admin UI.
 
-### GitHub Settings
-
 | Field | Description |
 |---|---|
 | **GitHub Personal Access Token** | Optional. Increases the API rate limit from 60 to 5000 requests/hour. The token needs no permissions — it only accesses public repositories. Create one at [github.com/settings/tokens](https://github.com/settings/tokens). |
 | **Check interval** | How often to check for updates, in seconds. Minimum 600 s (10 min), default 3600 s (1 h). |
-
-### Options
-
-| Field | Description |
-|---|---|
 | **Notify on update** | Sends an ioBroker notification when a newer version is found. |
-| **Global auto-update** | Automatically runs `iobroker url user/repo` when an update is detected. Can be overridden per adapter row. |
+| **Auto-update** | Automatically runs `iobroker url user/repo` when an update is detected. |
+| **Exclude adapters** | Comma-separated list of adapter names to skip, e.g. `my-adapter,other-adapter`. |
 
-### Adapter List
+---
 
-Add one row per adapter you want to monitor.
+## How Detection Works
 
-| Column | Description |
-|---|---|
-| **Adapter name** | The ioBroker adapter name as shown in the admin (e.g. `apsystem-ez1-solar`). Used to read the installed version from `system.adapter.<name>`. |
-| **GitHub repo** | In the format `user/repo` (e.g. `d3vc0-de/ioBroker.apsystem-ez1-solar`). Full URLs are also accepted. |
-| **Channel** | `Release` — uses the latest GitHub Release. Falls back to tags if no release exists. `Tag/Commit` — uses the latest tag, or the latest commit SHA if no tags exist. |
-| **Auto-update** | Per-adapter override for the global auto-update setting. |
+When an adapter is installed via `iobroker url`, ioBroker stores the source in `common.installedFrom` inside the `system.adapter.<name>` object. This adapter scans all `system.adapter.*` objects on startup and on each scheduled check, and picks up any entry where `installedFrom` points to GitHub — either as a full URL (`https://github.com/user/repo`) or a shorthand (`user/repo`).
 
 ---
 
@@ -72,6 +63,7 @@ github-updater.0.
     ├── installedVersion      String   — version currently installed in ioBroker
     ├── latestVersion         String   — latest version found on GitHub
     ├── updateAvailable       Boolean  — true when latestVersion > installedVersion
+    ├── githubRepo            String   — detected GitHub repository (user/repo)
     ├── releaseUrl            String   — URL to the GitHub release or tag page
     ├── lastChecked           String   — ISO timestamp of the last check for this adapter
     └── triggerUpdate         Button   — set to true to update this adapter immediately

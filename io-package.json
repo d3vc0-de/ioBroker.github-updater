@@ -58,7 +58,7 @@
 		"checkInterval": 3600,
 		"autoUpdate": false,
 		"notifyOnUpdate": true,
-		"adapters": []
+		"excludeAdapters": ""
 	},
 	"objects": [],
 	"instanceObjects": [
