@@ -1,4 +1,6 @@
 {
+	"headerDetected": "Erkannte GitHub-Adapter",
+	"btnDetect": "Jetzt scannen",
 	"headerGitHub": "GitHub-Einstellungen",
 	"githubToken": "GitHub Personal Access Token",
 	"githubTokenHelp": "Optional. Erhöht das Rate-Limit von 60 auf 5000 Anfragen/Stunde. Token benötigt keine Berechtigungen (nur public repos).",

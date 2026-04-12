@@ -1,4 +1,6 @@
 {
+	"headerDetected": "Detected GitHub adapters",
+	"btnDetect": "Scan now",
 	"headerGitHub": "GitHub Settings",
 	"githubToken": "GitHub Personal Access Token",
 	"githubTokenHelp": "Optional. Increases the API rate limit from 60 to 5000 requests/hour. Token needs no permissions (public repos only).",

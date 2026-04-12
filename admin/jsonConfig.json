@@ -2,6 +2,25 @@
 	"i18n": true,
 	"type": "panel",
 	"items": {
+		"headerDetected": {
+			"type": "header",
+			"text": "headerDetected",
+			"size": 3,
+			"newLine": true,
+			"xs": 12
+		},
+		"detectedList": {
+			"type": "sendTo",
+			"command": "getDetected",
+			"jsonData": "{}",
+			"label": "btnDetect",
+			"variant": "outlined",
+			"newLine": true,
+			"xs": 12, "sm": 12, "md": 8, "lg": 6, "xl": 5,
+			"data": "result",
+			"showProcess": true
+		},
+
 		"headerGitHub": {
 			"type": "header",
 			"text": "headerGitHub",

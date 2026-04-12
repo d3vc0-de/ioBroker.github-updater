@@ -10,10 +10,6 @@ const fs = require('node:fs');
 // Hilfsfunktionen
 // ---------------------------------------------------------------------------
 
-/**
- * Vergleicht zwei Semver-Versionsstrings.
- * @returns {number} > 0 wenn latest neuer als installed, 0 wenn gleich, < 0 wenn älter
- */
 function compareVersions(installed, latest) {
     const clean = v => v.replace(/^v/, '').split(/[.\-+]/).slice(0, 3).map(x => parseInt(x, 10) || 0);
     const [a1, b1, c1] = clean(installed);
@@ -23,16 +19,13 @@ function compareVersions(installed, latest) {
     return c2 - c1;
 }
 
-/**
- * GitHub API HTTPS-Request ohne externen Dependency.
- */
 function githubGet(apiPath, token) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'api.github.com',
             path: apiPath,
             headers: {
-                'User-Agent': 'ioBroker-github-updater/0.1.0',
+                'User-Agent': 'ioBroker-github-updater/0.2.0',
                 'Accept': 'application/vnd.github+json',
             },
         };
@@ -57,47 +50,34 @@ function githubGet(apiPath, token) {
     });
 }
 
-/**
- * Erkennt ob eine installedFrom-Quelle von GitHub stammt.
- */
 function isGithubSource(installedFrom) {
     if (!installedFrom) return false;
     if (installedFrom.includes('github.com')) return true;
-    // Kurzform user/repo (kein npm-Paketname, kein Scoped-Package)
+    if (installedFrom.startsWith('github:')) return true;
+    // Kurzform user/repo — kein npm-Scope (@scope/pkg) und kein reiner Paketname
     if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.+-]+$/.test(installedFrom)) return true;
     return false;
 }
 
-/**
- * Extrahiert "user/repo" aus verschiedenen GitHub-URL-Formaten.
- */
 function extractGithubRepo(installedFrom) {
-    // https://github.com/user/repo oder git+https://...
+    // https://github.com/user/repo  oder  git+https://github.com/user/repo.git
     const urlMatch = installedFrom.match(/github\.com[/:]([^/\s]+\/[^/\s#?]+)/);
     if (urlMatch) return urlMatch[1].replace(/\.git$/, '');
-    // Kurzform user/repo
+    // github:user/repo
+    if (installedFrom.startsWith('github:')) return installedFrom.slice(7).replace(/\.git$/, '');
+    // user/repo
     if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.+-]+$/.test(installedFrom)) return installedFrom;
     return null;
 }
 
-/**
- * Ermittelt den ioBroker-Installationspfad ausgehend vom Adapter-Verzeichnis.
- */
 function findIoBrokerRoot() {
-    const candidates = [
-        path.resolve(__dirname, '..', '..'),
-        '/opt/iobroker',
-    ];
+    const candidates = [path.resolve(__dirname, '..', '..'), '/opt/iobroker'];
     for (const dir of candidates) {
-        if (fs.existsSync(path.join(dir, 'node_modules', 'iobroker.js-controller'))) {
-            return dir;
-        }
+        if (fs.existsSync(path.join(dir, 'node_modules', 'iobroker.js-controller'))) return dir;
     }
     return '/opt/iobroker';
 }
 
-// ---------------------------------------------------------------------------
-// Adapter-Klasse
 // ---------------------------------------------------------------------------
 
 class GithubUpdater extends utils.Adapter {
@@ -106,13 +86,13 @@ class GithubUpdater extends utils.Adapter {
 
         this.on('ready',       this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
+        this.on('message',     this.onMessage.bind(this));
         this.on('unload',      this.onUnload.bind(this));
 
-        this.pollTimer  = null;
-        this.iobRoot    = findIoBrokerRoot();
-        this.running    = false;
-        // Zuletzt erkannte Adapter: { adapterName -> githubRepo }
-        this.detected   = {};
+        this.pollTimer = null;
+        this.iobRoot   = findIoBrokerRoot();
+        this.running   = false;
+        this.detected  = {}; // adapterName -> githubRepo
     }
 
     // -----------------------------------------------------------------------
@@ -125,6 +105,12 @@ class GithubUpdater extends utils.Adapter {
             common: { name: 'Jetzt prüfen', type: 'boolean', role: 'button', read: false, write: true, def: false },
             native: {},
         });
+        await this.setObjectNotExistsAsync('info.detectedAdapters', {
+            type: 'state',
+            common: { name: 'Erkannte GitHub-Adapter', type: 'string', role: 'text', read: true, write: false, def: '' },
+            native: {},
+        });
+
         await this.subscribeStatesAsync('actions.checkNow');
         await this.subscribeStatesAsync('adapters.*.triggerUpdate');
 
@@ -158,6 +144,22 @@ class GithubUpdater extends utils.Adapter {
     }
 
     // -----------------------------------------------------------------------
+    // sendTo-Handler: liefert erkannte Adapter für die Config-UI
+    // -----------------------------------------------------------------------
+
+    async onMessage(msg) {
+        if (msg.command === 'getDetected') {
+            // Frischer Scan damit die Config immer aktuell ist
+            const adapters = await this.detectGithubAdapters();
+            this.sendTo(msg.from, msg.command, {
+                result: adapters.length
+                    ? adapters.map(a => `${a.adapterName}  →  ${a.githubRepo}`).join('\n')
+                    : 'Keine GitHub-Adapter gefunden.\nPrüfe das Log (loglevel=debug) für Details.',
+            }, msg.callback);
+        }
+    }
+
+    // -----------------------------------------------------------------------
 
     async onUnload(callback) {
         try { this.pollTimer && this.clearInterval(this.pollTimer); }
@@ -165,28 +167,34 @@ class GithubUpdater extends utils.Adapter {
     }
 
     // -----------------------------------------------------------------------
-    // Kernlogik
+    // Erkennung
     // -----------------------------------------------------------------------
 
-    /**
-     * Scannt alle system.adapter.*-Objekte und gibt GitHub-installierte zurück.
-     * @returns {Array<{ adapterName: string, githubRepo: string }>}
-     */
     async detectGithubAdapters() {
         const exclude = (this.config.excludeAdapters || '')
             .split(',').map(s => s.trim()).filter(Boolean);
 
         const objs = await this.getForeignObjectsAsync('system.adapter.*');
-        const found = [];
+        const total = Object.keys(objs || {}).length;
+        this.log.debug(`Scanne ${total} system.adapter-Objekte…`);
+
+        // Map: adapterName → repo (dedupliziert, Basis-Objekt hat Vorrang vor Instanz)
+        const found = new Map();
 
         for (const [id, obj] of Object.entries(objs || {})) {
             if (!obj || !obj.common) continue;
-            // Nur Basis-Adapter-Objekte (keine Instanzen wie system.adapter.name.0)
-            const parts = id.replace('system.adapter.', '').split('.');
-            if (parts.length !== 1) continue;
 
-            const adapterName   = parts[0];
+            // Adapter-Name aus ID extrahieren (system.adapter.<name> oder system.adapter.<name>.0)
+            const rest        = id.replace('system.adapter.', '');
+            const adapterName = rest.split('.')[0];
+            const isInstance  = rest.includes('.');
+
             const installedFrom = obj.common.installedFrom || '';
+
+            // Alle installedFrom-Werte im Debug-Log sichtbar machen
+            if (installedFrom) {
+                this.log.debug(`  ${id}: installedFrom="${installedFrom}"`);
+            }
 
             if (!isGithubSource(installedFrom)) continue;
             if (exclude.includes(adapterName)) continue;
@@ -194,11 +202,18 @@ class GithubUpdater extends utils.Adapter {
             const repo = extractGithubRepo(installedFrom);
             if (!repo) continue;
 
-            found.push({ adapterName, githubRepo: repo });
+            // Basis-Objekt (ohne Instanz-Nummer) hat Vorrang
+            if (!found.has(adapterName) || !isInstance) {
+                found.set(adapterName, repo);
+            }
         }
 
-        return found;
+        const result = Array.from(found.entries()).map(([adapterName, githubRepo]) => ({ adapterName, githubRepo }));
+        this.log.debug(`Erkannte GitHub-Adapter: ${result.map(a => a.adapterName).join(', ') || 'keine'}`);
+        return result;
     }
+
+    // -----------------------------------------------------------------------
 
     async checkAllAdapters() {
         if (this.running) {
@@ -217,20 +232,22 @@ class GithubUpdater extends utils.Adapter {
         }
 
         if (!adapters.length) {
-            this.log.info('Keine manuell via GitHub installierten Adapter gefunden.');
+            this.log.warn('Keine manuell via GitHub installierten Adapter gefunden.');
+            this.log.warn('Tipp: Setze Log-Level auf "debug" um zu sehen welche installedFrom-Werte gefunden wurden.');
+            this.setState('info.detectedAdapters', '', true);
             this.setState('info.updatesAvailable', 0, true);
             this.setState('info.lastCheck', new Date().toISOString(), true);
             this.running = false;
             return;
         }
 
-        this.log.info(`${adapters.length} GitHub-Adapter gefunden: ${adapters.map(a => a.adapterName).join(', ')}`);
+        this.log.info(`${adapters.length} GitHub-Adapter erkannt: ${adapters.map(a => a.adapterName).join(', ')}`);
 
-        // Erkannte Adapter merken (für triggerUpdate)
         this.detected = {};
         for (const { adapterName, githubRepo } of adapters) {
             this.detected[adapterName] = githubRepo;
         }
+        this.setState('info.detectedAdapters', adapters.map(a => `${a.adapterName} (${a.githubRepo})`).join(', '), true);
 
         let updatesFound = 0;
         let githubOk     = true;
@@ -246,23 +263,18 @@ class GithubUpdater extends utils.Adapter {
             }
         }
 
-        this.setState('info.connection',       githubOk,                  true);
-        this.setState('info.lastCheck',        new Date().toISOString(),   true);
-        this.setState('info.updatesAvailable', updatesFound,               true);
+        this.setState('info.connection',       githubOk,                true);
+        this.setState('info.lastCheck',        new Date().toISOString(), true);
+        this.setState('info.updatesAvailable', updatesFound,             true);
         this.running = false;
 
         this.log.info(`Check abgeschlossen. ${updatesFound} Update(s) verfügbar.`);
     }
 
-    /**
-     * Prüft einen einzelnen Adapter auf eine neuere Version.
-     * @returns {boolean} true wenn Update verfügbar
-     */
     async checkAdapter({ adapterName, githubRepo }) {
         const token = this.config.githubToken || '';
         this.log.debug(`Prüfe ${adapterName} (${githubRepo})…`);
 
-        // Installierte Version aus dem Adapter-Objekt
         const obj = await this.getForeignObjectAsync(`system.adapter.${adapterName}`);
         const installedVersion = obj && obj.common && obj.common.version;
         if (!installedVersion) {
@@ -270,7 +282,6 @@ class GithubUpdater extends utils.Adapter {
             return false;
         }
 
-        // Neueste Version von GitHub
         const { latestVersion, releaseUrl } = await this.getLatestGithubVersion(githubRepo, token);
         if (!latestVersion) {
             this.log.warn(`Keine GitHub-Version für ${githubRepo} gefunden.`);
@@ -278,7 +289,7 @@ class GithubUpdater extends utils.Adapter {
         }
 
         const updateAvailable = compareVersions(installedVersion, latestVersion) > 0;
-        this.log.debug(`${adapterName}: ${installedVersion} → ${latestVersion} (update=${updateAvailable})`);
+        this.log.info(`${adapterName}: installiert=${installedVersion}, GitHub=${latestVersion}, update=${updateAvailable}`);
 
         await this.setState(`adapters.${adapterName}.installedVersion`, installedVersion,         true);
         await this.setState(`adapters.${adapterName}.latestVersion`,    latestVersion,            true);
@@ -305,16 +316,11 @@ class GithubUpdater extends utils.Adapter {
     async getLatestGithubVersion(repo, token) {
         const cleanRepo = repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
 
-        // 1. Neuestes Release
         const release = await githubGet(`/repos/${cleanRepo}/releases/latest`, token);
         if (release && release.tag_name) {
-            return {
-                latestVersion: release.tag_name.replace(/^v/, ''),
-                releaseUrl:    release.html_url || '',
-            };
+            return { latestVersion: release.tag_name.replace(/^v/, ''), releaseUrl: release.html_url || '' };
         }
 
-        // 2. Neuester Tag
         const tags = await githubGet(`/repos/${cleanRepo}/tags?per_page=1`, token);
         if (tags && tags.length > 0) {
             return {
@@ -323,13 +329,9 @@ class GithubUpdater extends utils.Adapter {
             };
         }
 
-        // 3. Letzter Commit (SHA-Kurzform als Fallback)
         const commits = await githubGet(`/repos/${cleanRepo}/commits?per_page=1`, token);
         if (commits && commits.length > 0) {
-            return {
-                latestVersion: commits[0].sha.slice(0, 7),
-                releaseUrl:    `https://github.com/${cleanRepo}/commits`,
-            };
+            return { latestVersion: commits[0].sha.slice(0, 7), releaseUrl: `https://github.com/${cleanRepo}/commits` };
         }
 
         return { latestVersion: null, releaseUrl: null };
@@ -338,9 +340,9 @@ class GithubUpdater extends utils.Adapter {
     // -----------------------------------------------------------------------
 
     async doUpdate(adapterName, githubRepo) {
-        const cleanRepo  = githubRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
-        const iobScript  = path.join(this.iobRoot, 'node_modules', 'iobroker.js-controller', 'iobroker.js');
-        const cmd        = `node "${iobScript}" url "${cleanRepo}"`;
+        const cleanRepo = githubRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+        const iobScript = path.join(this.iobRoot, 'node_modules', 'iobroker.js-controller', 'iobroker.js');
+        const cmd       = `node "${iobScript}" url "${cleanRepo}"`;
 
         this.log.info(`Starte Update: ${adapterName} von ${cleanRepo}`);
         return new Promise((resolve) => {
@@ -375,7 +377,6 @@ class GithubUpdater extends utils.Adapter {
                 native: {},
             });
         }
-        // triggerUpdate-Button
         await this.setObjectNotExistsAsync(`${base}.triggerUpdate`, {
             type: 'state',
             common: { name: `Update ${adapterName} auslösen`, type: 'boolean', role: 'button', read: false, write: true, def: false },
