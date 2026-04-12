@@ -191,10 +191,13 @@ class GithubUpdater extends utils.Adapter {
 
             const installedFrom = obj.common.installedFrom || '';
 
-            // Alle installedFrom-Werte im Debug-Log sichtbar machen
-            if (installedFrom) {
-                this.log.debug(`  ${id}: installedFrom="${installedFrom}"`);
-            }
+            // ALLE Felder loggen die auf GitHub hindeuten könnten
+            const relevant = {
+                installedFrom,
+                installedVersion: obj.common.installedVersion || '',
+                type: obj.type || '',
+            };
+            this.log.info(`SCAN ${id}: installedFrom="${installedFrom}" type="${obj.type}"`);
 
             if (!isGithubSource(installedFrom)) continue;
             if (exclude.includes(adapterName)) continue;
