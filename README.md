@@ -87,6 +87,9 @@ The ioBroker root path is detected automatically by traversing up from the adapt
 
 ## Changelog
 
+### 0.2.0
+- Auto-detect GitHub-installed adapters via `installedFrom` field — no manual configuration needed
+
 ### 0.1.0
 - Initial release
 

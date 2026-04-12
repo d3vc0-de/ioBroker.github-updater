@@ -1,6 +1,6 @@
 {
   "name": "iobroker.github-updater",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ioBroker Adapter zum Prüfen und Aktualisieren von manuell via GitHub installierten Adaptern",
   "author": {
     "name": "alex",
