@@ -1,8 +1,12 @@
 {
 	"common": {
 		"name": "github-updater",
-		"version": "0.2.0",
+		"version": "0.3.0",
 		"news": {
+			"0.3.0": {
+				"en": "Fix detection via package-lock.json",
+				"de": "Erkennung via package-lock.json korrigiert"
+			},
 			"0.2.0": {
 				"en": "Auto-detect GitHub-installed adapters via installedFrom",
 				"de": "Automatische Erkennung via installedFrom"
