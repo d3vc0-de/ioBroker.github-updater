@@ -1,0 +1,88 @@
+[ADAPTER] GitHub Updater – Update-Check für manuell installierte Adapter
+
+Hallo zusammen,
+
+ich habe einen kleinen Adapter geschrieben, der ein Problem löst das mich schon länger gestört hat:
+Adapter die man per „iobroker url" direkt von GitHub installiert, tauchen im normalen Update-Check
+des Admin nicht auf. Man bekommt also keine Benachrichtigung wenn es eine neue Version gibt und
+muss manuell nachschauen.
+
+Der github-updater Adapter macht genau das automatisch.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Was der Adapter macht
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Erkennt automatisch alle Adapter die per GitHub installiert wurden – keine manuelle Konfiguration
+  nötig. Der Adapter liest dazu die package-lock.json im ioBroker-Verzeichnis aus.
+
+• Prüft über die GitHub API ob eine neuere Version verfügbar ist:
+  – Repos mit Releases oder Tags: Semver-Vergleich
+  – Repos ohne Releases/Tags (nur Commits): Commit-Hash-Vergleich – auch hier wird ein neuer
+    Commit als Update erkannt
+
+• Zeigt das Ergebnis als ioBroker-States an (installierte Version, neueste Version, Update
+  verfügbar, Release-URL)
+
+• Sendet eine ioBroker-Benachrichtigung wenn ein Update gefunden wird
+
+• Optional: Auto-Update per Knopfdruck oder vollautomatisch
+
+• Prüfintervall einstellbar (Standard: 24 Stunden)
+
+• GitHub Personal Access Token unterstützt (erhöht das Rate-Limit von 60 auf 5000 API-Anfragen/h)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Installation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Da der Adapter selbst noch nicht im offiziellen Repository ist, muss er – passenderweise – ebenfalls
+per GitHub-URL installiert werden:
+
+    cd /opt/iobroker
+    iobroker url https://github.com/d3vc0-de/ioBroker.github-updater
+
+Danach taucht er im Admin unter Instanzen auf und kann dort konfiguriert werden.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠ Hinweis – bitte lesen
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Der Adapter ist mit Vorsicht zu genießen, und zwar aus einem grundsätzlichen Grund:
+
+Adapter die direkt von GitHub installiert werden sind per Definition nicht im offiziellen ioBroker-
+Repository geprüft. Das bedeutet, dass auf GitHub jederzeit auch instabile Zwischenstände, Beta-
+Builds oder sogar fehlerhafte Commits als „neueste Version" landen können – ganz ohne Release-
+Kennzeichnung.
+
+Der github-updater kann das nicht unterscheiden. Er meldet „Update verfügbar" sobald sich etwas
+geändert hat, egal ob das eine bewusste neue Version oder ein halbfertiger Entwicklungsstand ist.
+
+Konkret:
+• Repos mit Releases/Tags: in der Regel unkritisch, da der Entwickler bewusst eine Version
+  veröffentlicht hat
+• Repos ohne Releases/Tags (reiner Commit-Vergleich): hier kann ein „Update" auch ein Work-in-
+  Progress-Commit sein – im Zweifel lieber kurz auf GitHub nachschauen bevor man aktualisiert
+• Auto-Update: wer diese Funktion aktiviert sollte sich bewusst sein, dass dabei ein laufender
+  Adapter kurz gestoppt und neu gestartet wird – und dass im schlimmsten Fall ein fehlerhafter
+  Stand eingespielt werden kann
+
+Kurz gesagt: der Adapter ist ein Hilfsmittel für Leute die wissen was sie tun. Wer auf Stabilität
+angewiesen ist, sollte das Auto-Update deaktiviert lassen und Updates manuell prüfen.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Frühe Version, aber funktionsfähig. Ich nutze ihn selbst auf js-controller 7.x / Node.js 22.
+
+GitHub: https://github.com/d3vc0-de/ioBroker.github-updater
+
+Über Feedback, Bugreports und Verbesserungsvorschläge freue ich mich!
+
+Grüße
+alex
