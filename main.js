@@ -50,23 +50,19 @@ function githubGet(apiPath, token) {
     });
 }
 
-function isGithubSource(installedFrom) {
-    if (!installedFrom) return false;
-    if (installedFrom.includes('github.com')) return true;
-    if (installedFrom.startsWith('github:')) return true;
-    // Kurzform user/repo — kein npm-Scope (@scope/pkg) und kein reiner Paketname
-    if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.+-]+$/.test(installedFrom)) return true;
-    return false;
-}
-
-function extractGithubRepo(installedFrom) {
-    // https://github.com/user/repo  oder  git+https://github.com/user/repo.git
-    const urlMatch = installedFrom.match(/github\.com[/:]([^/\s]+\/[^/\s#?]+)/);
+/**
+ * Extrahiert "user/repo" aus allen bekannten GitHub-Quellenformaten.
+ * Gibt null zurück wenn kein GitHub-Bezug erkennbar ist.
+ */
+function extractGithubRepo(source) {
+    if (!source) return null;
+    // https://github.com/user/repo  oder codeload.github.com/user/repo/tar.gz/hash
+    const urlMatch = source.match(/github\.com[/:]([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)/);
     if (urlMatch) return urlMatch[1].replace(/\.git$/, '');
-    // github:user/repo
-    if (installedFrom.startsWith('github:')) return installedFrom.slice(7).replace(/\.git$/, '');
-    // user/repo
-    if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.+-]+$/.test(installedFrom)) return installedFrom;
+    // github:user/repo  (npm Kurzform)
+    if (source.startsWith('github:')) return source.slice(7).split('#')[0].replace(/\.git$/, '');
+    // user/repo  (iobroker url Kurzform, kein npm-Scope)
+    if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(source)) return source;
     return null;
 }
 
@@ -170,49 +166,65 @@ class GithubUpdater extends utils.Adapter {
     // Erkennung
     // -----------------------------------------------------------------------
 
+    /**
+     * Scannt node_modules auf iobroker.*-Pakete und prüft deren package.json
+     * auf GitHub-Herkunft (_from / _resolved / repository).
+     * Das ist derselbe Mechanismus den adapter-core für "(non-npm: ...)" nutzt.
+     */
     async detectGithubAdapters() {
-        const exclude = (this.config.excludeAdapters || '')
-            .split(',').map(s => s.trim()).filter(Boolean);
+        const exclude    = (this.config.excludeAdapters || '').split(',').map(s => s.trim()).filter(Boolean);
+        const modulesDir = path.join(this.iobRoot, 'node_modules');
+        const found      = new Map();
 
-        const objs = await this.getForeignObjectsAsync('system.adapter.*');
-        const total = Object.keys(objs || {}).length;
-        this.log.debug(`Scanne ${total} system.adapter-Objekte…`);
+        let entries;
+        try {
+            entries = fs.readdirSync(modulesDir);
+        } catch (err) {
+            this.log.error(`Kann node_modules nicht lesen (${modulesDir}): ${err.message}`);
+            return [];
+        }
 
-        // Map: adapterName → repo (dedupliziert, Basis-Objekt hat Vorrang vor Instanz)
-        const found = new Map();
+        for (const dir of entries) {
+            // Nur iobroker.*-Pakete
+            if (!dir.startsWith('iobroker.')) continue;
 
-        for (const [id, obj] of Object.entries(objs || {})) {
-            if (!obj || !obj.common) continue;
+            const pkgPath = path.join(modulesDir, dir, 'package.json');
+            if (!fs.existsSync(pkgPath)) continue;
 
-            // Adapter-Name aus ID extrahieren (system.adapter.<name> oder system.adapter.<name>.0)
-            const rest        = id.replace('system.adapter.', '');
-            const adapterName = rest.split('.')[0];
-            const isInstance  = rest.includes('.');
+            let pkg;
+            try { pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')); }
+            catch { continue; }
 
-            const installedFrom = obj.common.installedFrom || '';
-
-            // ALLE Felder loggen die auf GitHub hindeuten könnten
-            const relevant = {
-                installedFrom,
-                installedVersion: obj.common.installedVersion || '',
-                type: obj.type || '',
-            };
-            this.log.info(`SCAN ${id}: installedFrom="${installedFrom}" type="${obj.type}"`);
-
-            if (!isGithubSource(installedFrom)) continue;
+            // Adapter-Name: iobroker.name → name
+            const adapterName = dir.slice('iobroker.'.length);
             if (exclude.includes(adapterName)) continue;
 
-            const repo = extractGithubRepo(installedFrom);
-            if (!repo) continue;
+            // Quell-Felder die npm beim GitHub-Install setzt
+            const from     = pkg._from     || '';
+            const resolved = pkg._resolved || '';
+            // Fallback: repository.url im package.json (immer gesetzt, aber für alle Adapter)
+            const repoUrl  = (pkg.repository && typeof pkg.repository === 'object')
+                ? (pkg.repository.url || '') : (pkg.repository || '');
 
-            // Basis-Objekt (ohne Instanz-Nummer) hat Vorrang
-            if (!found.has(adapterName) || !isInstance) {
-                found.set(adapterName, repo);
+            this.log.debug(`${dir}: _from="${from}" _resolved="${resolved}"`);
+
+            // Priorität: _from → _resolved → (repository nur wenn Version kein semver ist)
+            let repo = extractGithubRepo(from) || extractGithubRepo(resolved);
+
+            // Wenn weder _from noch _resolved gesetzt: Version enthält Git-Hash → non-npm
+            if (!repo && repoUrl.includes('github.com')) {
+                const isSemver = /^\d+\.\d+\.\d+$/.test(pkg.version || '');
+                if (!isSemver) {
+                    repo = extractGithubRepo(repoUrl);
+                }
             }
+
+            if (!repo) continue;
+            found.set(adapterName, repo);
         }
 
         const result = Array.from(found.entries()).map(([adapterName, githubRepo]) => ({ adapterName, githubRepo }));
-        this.log.debug(`Erkannte GitHub-Adapter: ${result.map(a => a.adapterName).join(', ') || 'keine'}`);
+        this.log.info(`Erkannte GitHub-Adapter: ${result.map(a => a.adapterName).join(', ') || 'keine'}`);
         return result;
     }
 
@@ -278,8 +290,18 @@ class GithubUpdater extends utils.Adapter {
         const token = this.config.githubToken || '';
         this.log.debug(`Prüfe ${adapterName} (${githubRepo})…`);
 
-        const obj = await this.getForeignObjectAsync(`system.adapter.${adapterName}`);
-        const installedVersion = obj && obj.common && obj.common.version;
+        // Version aus package.json lesen (zuverlässiger als Object-DB)
+        const pkgPath = path.join(this.iobRoot, 'node_modules', `iobroker.${adapterName}`, 'package.json');
+        let installedVersion = null;
+        try {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            installedVersion = pkg.version || null;
+        } catch (_) {}
+        // Fallback: Object-DB
+        if (!installedVersion) {
+            const obj = await this.getForeignObjectAsync(`system.adapter.${adapterName}`);
+            installedVersion = obj && obj.common && obj.common.version;
+        }
         if (!installedVersion) {
             this.log.warn(`Keine installierte Version für '${adapterName}' gefunden.`);
             return false;
