@@ -19,6 +19,17 @@ function compareVersions(installed, latest) {
     return c2 - c1;
 }
 
+/** Extrahiert den Commit-Hash aus einer codeload.github.com-URL */
+function extractCommitFromUrl(resolved) {
+    const match = resolved.match(/\/tar\.gz\/([a-f0-9]{7,40})$/i);
+    return match ? match[1] : null;
+}
+
+/** Prüft ob ein String ein SHA-Hash ist (7 oder 40 Zeichen hex) */
+function isHash(s) {
+    return /^[a-f0-9]{7,40}$/i.test(s);
+}
+
 function githubGet(apiPath, token) {
     return new Promise((resolve, reject) => {
         const options = {
@@ -131,10 +142,10 @@ class GithubUpdater extends utils.Adapter {
         const match = id.match(/adapters\.(.+)\.triggerUpdate$/);
         if (match && state.val) {
             const adapterName = match[1];
-            const repo = this.detected[adapterName];
-            if (repo) {
+            const entry = this.detected[adapterName];
+            if (entry) {
                 this.log.info(`Manuelles Update für ${adapterName} angefordert.`);
-                await this.doUpdate(adapterName, repo);
+                await this.doUpdate(adapterName, entry.githubRepo);
             }
         }
     }
@@ -203,10 +214,11 @@ class GithubUpdater extends utils.Adapter {
             const repo = extractGithubRepo(resolved);
             if (!repo) continue;
 
-            found.set(adapterName, repo);
+            const installedCommit = extractCommitFromUrl(resolved);
+            found.set(adapterName, { githubRepo: repo, installedCommit });
         }
 
-        const result = Array.from(found.entries()).map(([adapterName, githubRepo]) => ({ adapterName, githubRepo }));
+        const result = Array.from(found.entries()).map(([adapterName, { githubRepo, installedCommit }]) => ({ adapterName, githubRepo, installedCommit }));
         this.log.info(`Erkannte GitHub-Adapter: ${result.map(a => a.adapterName).join(', ') || 'keine'}`);
         return result;
     }
@@ -242,8 +254,8 @@ class GithubUpdater extends utils.Adapter {
         this.log.info(`${adapters.length} GitHub-Adapter erkannt: ${adapters.map(a => a.adapterName).join(', ')}`);
 
         this.detected = {};
-        for (const { adapterName, githubRepo } of adapters) {
-            this.detected[adapterName] = githubRepo;
+        for (const { adapterName, githubRepo, installedCommit } of adapters) {
+            this.detected[adapterName] = { githubRepo, installedCommit };
         }
         this.setState('info.detectedAdapters', adapters.map(a => `${a.adapterName} (${a.githubRepo})`).join(', '), true);
 
@@ -269,18 +281,17 @@ class GithubUpdater extends utils.Adapter {
         this.log.info(`Check abgeschlossen. ${updatesFound} Update(s) verfügbar.`);
     }
 
-    async checkAdapter({ adapterName, githubRepo }) {
+    async checkAdapter({ adapterName, githubRepo, installedCommit }) {
         const token = this.config.githubToken || '';
         this.log.debug(`Prüfe ${adapterName} (${githubRepo})…`);
 
-        // Version aus package.json lesen (zuverlässiger als Object-DB)
+        // Version aus package.json lesen
         const pkgPath = path.join(this.iobRoot, 'node_modules', `iobroker.${adapterName}`, 'package.json');
         let installedVersion = null;
         try {
             const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
             installedVersion = pkg.version || null;
         } catch (_) {}
-        // Fallback: Object-DB
         if (!installedVersion) {
             const obj = await this.getForeignObjectAsync(`system.adapter.${adapterName}`);
             installedVersion = obj && obj.common && obj.common.version;
@@ -290,17 +301,36 @@ class GithubUpdater extends utils.Adapter {
             return false;
         }
 
-        const { latestVersion, releaseUrl } = await this.getLatestGithubVersion(githubRepo, token);
+        const { latestVersion, latestSha, releaseUrl, isCommitBased } = await this.getLatestGithubVersion(githubRepo, token);
         if (!latestVersion) {
             this.log.warn(`Keine GitHub-Version für ${githubRepo} gefunden.`);
             return false;
         }
 
-        const updateAvailable = compareVersions(installedVersion, latestVersion) > 0;
-        this.log.info(`${adapterName}: installiert=${installedVersion}, GitHub=${latestVersion}, update=${updateAvailable}`);
+        let updateAvailable;
+        let displayInstalled = installedVersion;
+        let displayLatest    = latestVersion;
 
-        await this.setState(`adapters.${adapterName}.installedVersion`, installedVersion,         true);
-        await this.setState(`adapters.${adapterName}.latestVersion`,    latestVersion,            true);
+        if (isCommitBased && installedCommit) {
+            // Commit-Hash-Vergleich: unterschiedliche Hashes = Update
+            const shortInstalled = installedCommit.slice(0, 7);
+            const shortLatest    = (latestSha || latestVersion).slice(0, 7);
+            updateAvailable  = shortInstalled !== shortLatest;
+            displayInstalled = `${installedVersion} (${shortInstalled})`;
+            displayLatest    = shortLatest;
+        } else if (isCommitBased && !installedCommit) {
+            // Kein installierter Hash bekannt → kein zuverlässiger Vergleich möglich
+            updateAvailable  = false;
+            displayLatest    = latestVersion;
+        } else {
+            // Semver-Vergleich
+            updateAvailable = compareVersions(installedVersion, latestVersion) > 0;
+        }
+
+        this.log.info(`${adapterName}: installiert=${displayInstalled}, GitHub=${displayLatest}, update=${updateAvailable}`);
+
+        await this.setState(`adapters.${adapterName}.installedVersion`, displayInstalled,          true);
+        await this.setState(`adapters.${adapterName}.latestVersion`,    displayLatest,             true);
         await this.setState(`adapters.${adapterName}.updateAvailable`,  updateAvailable,          true);
         await this.setState(`adapters.${adapterName}.githubRepo`,       githubRepo,               true);
         await this.setState(`adapters.${adapterName}.releaseUrl`,       releaseUrl || '',         true);
@@ -326,23 +356,37 @@ class GithubUpdater extends utils.Adapter {
 
         const release = await githubGet(`/repos/${cleanRepo}/releases/latest`, token);
         if (release && release.tag_name) {
-            return { latestVersion: release.tag_name.replace(/^v/, ''), releaseUrl: release.html_url || '' };
+            return {
+                latestVersion:  release.tag_name.replace(/^v/, ''),
+                latestSha:      null,
+                releaseUrl:     release.html_url || '',
+                isCommitBased:  false,
+            };
         }
 
         const tags = await githubGet(`/repos/${cleanRepo}/tags?per_page=1`, token);
         if (tags && tags.length > 0) {
             return {
-                latestVersion: tags[0].name.replace(/^v/, ''),
-                releaseUrl:    `https://github.com/${cleanRepo}/releases/tag/${tags[0].name}`,
+                latestVersion:  tags[0].name.replace(/^v/, ''),
+                latestSha:      tags[0].commit && tags[0].commit.sha || null,
+                releaseUrl:     `https://github.com/${cleanRepo}/releases/tag/${tags[0].name}`,
+                isCommitBased:  false,
             };
         }
 
+        // Kein Release, kein Tag → Commit-Hash-Vergleich
         const commits = await githubGet(`/repos/${cleanRepo}/commits?per_page=1`, token);
         if (commits && commits.length > 0) {
-            return { latestVersion: commits[0].sha.slice(0, 7), releaseUrl: `https://github.com/${cleanRepo}/commits` };
+            const sha = commits[0].sha;
+            return {
+                latestVersion:  sha.slice(0, 7),
+                latestSha:      sha,
+                releaseUrl:     `https://github.com/${cleanRepo}/commits`,
+                isCommitBased:  true,
+            };
         }
 
-        return { latestVersion: null, releaseUrl: null };
+        return { latestVersion: null, latestSha: null, releaseUrl: null, isCommitBased: false };
     }
 
     // -----------------------------------------------------------------------

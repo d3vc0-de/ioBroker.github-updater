@@ -63,7 +63,7 @@
 	},
 	"native": {
 		"githubToken": "",
-		"checkInterval": 3600,
+		"checkInterval": 86400,
 		"autoUpdate": false,
 		"notifyOnUpdate": true,
 		"excludeAdapters": ""
