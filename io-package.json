@@ -1,0 +1,118 @@
+{
+	"common": {
+		"name": "github-updater",
+		"version": "0.1.0",
+		"news": {
+			"0.1.0": {
+				"en": "Initial release",
+				"de": "Erstveröffentlichung"
+			}
+		},
+		"titleLang": {
+			"en": "GitHub Updater",
+			"de": "GitHub Updater"
+		},
+		"desc": {
+			"en": "Checks for updates of manually installed adapters from GitHub and optionally triggers the update",
+			"de": "Prüft auf Updates von manuell via GitHub installierten Adaptern und kann diese automatisch aktualisieren"
+		},
+		"authors": [
+			"alex <d3vc0_de@proton.me>"
+		],
+		"keywords": [
+			"github",
+			"update",
+			"adapter",
+			"updater"
+		],
+		"licenseInformation": {
+			"type": "free",
+			"license": "MIT"
+		},
+		"platform": "Javascript/Node.js",
+		"enabled": true,
+		"loglevel": "info",
+		"tier": 3,
+		"mode": "daemon",
+		"type": "general",
+		"icon": "github-updater.svg",
+		"compact": true,
+		"connectionType": "cloud",
+		"dataSource": "poll",
+		"adminUI": {
+			"config": "json"
+		},
+		"dependencies": [
+			{
+				"js-controller": ">=6.0.0"
+			}
+		],
+		"globalDependencies": [
+			{
+				"admin": ">=7.0.0"
+			}
+		]
+	},
+	"native": {
+		"githubToken": "",
+		"checkInterval": 3600,
+		"autoUpdate": false,
+		"notifyOnUpdate": true,
+		"adapters": []
+	},
+	"objects": [],
+	"instanceObjects": [
+		{
+			"_id": "info.connection",
+			"type": "state",
+			"common": {
+				"name": "GitHub erreichbar",
+				"type": "boolean",
+				"role": "indicator.connected",
+				"read": true,
+				"write": false,
+				"def": false
+			},
+			"native": {}
+		},
+		{
+			"_id": "info.lastCheck",
+			"type": "state",
+			"common": {
+				"name": "Letzter Check",
+				"type": "string",
+				"role": "date",
+				"read": true,
+				"write": false,
+				"def": ""
+			},
+			"native": {}
+		},
+		{
+			"_id": "info.updatesAvailable",
+			"type": "state",
+			"common": {
+				"name": "Anzahl verfügbarer Updates",
+				"type": "number",
+				"role": "value",
+				"read": true,
+				"write": false,
+				"def": 0
+			},
+			"native": {}
+		},
+		{
+			"_id": "actions.checkNow",
+			"type": "state",
+			"common": {
+				"name": "Jetzt prüfen",
+				"type": "boolean",
+				"role": "button",
+				"read": false,
+				"write": true,
+				"def": false
+			},
+			"native": {}
+		}
+	]
+}

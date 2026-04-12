@@ -1,0 +1,28 @@
+{
+  "name": "iobroker.github-updater",
+  "version": "0.1.0",
+  "description": "ioBroker Adapter zum Prüfen und Aktualisieren von manuell via GitHub installierten Adaptern",
+  "author": {
+    "name": "alex",
+    "email": "d3vc0_de@proton.me"
+  },
+  "license": "MIT",
+  "platform": "Javascript/Node.js",
+  "engines": {
+    "node": ">= 20"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.3.2"
+  },
+  "main": "main.js",
+  "files": [
+    "admin{,/!(src)/**}/!(tsconfig|tsconfig.*|.eslintrc).{json,json5}",
+    "admin{,/!(src)/**}/*.{html,css,png,svg,jpg,js}",
+    "io-package.json",
+    "LICENSE",
+    "main.js"
+  ],
+  "scripts": {
+    "test": "echo \"No tests defined\" && exit 0"
+  }
+}

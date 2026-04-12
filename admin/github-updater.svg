@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Hintergrund -->
+  <circle cx="50" cy="50" r="48" fill="#1a1a2e" stroke="#4a9eff" stroke-width="2"/>
+
+  <!-- GitHub Octocat-förmiger Kreis (vereinfacht als Basis) -->
+  <!-- Update-Pfeil (kreisförmig, nach oben weisend) -->
+  <path d="M 50 18
+           A 32 32 0 1 1 18 50"
+        fill="none" stroke="#4a9eff" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Pfeilspitze oben (zeigt Richtung "aufwärts/neuer") -->
+  <polyline points="37,12 50,18 44,31"
+            fill="none" stroke="#4a9eff" stroke-width="7"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Aufwärtspfeil in der Mitte -->
+  <line x1="50" y1="62" x2="50" y2="42" stroke="#7dd3fc" stroke-width="6" stroke-linecap="round"/>
+  <polyline points="42,50 50,41 58,50"
+            fill="none" stroke="#7dd3fc" stroke-width="6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Kleiner Strich unten (Basis des Pfeils) -->
+  <line x1="42" y1="66" x2="58" y2="66" stroke="#7dd3fc" stroke-width="6" stroke-linecap="round"/>
+</svg>

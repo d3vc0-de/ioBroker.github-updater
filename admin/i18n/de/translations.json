@@ -1,0 +1,17 @@
+{
+	"headerGitHub": "GitHub-Einstellungen",
+	"githubToken": "GitHub Personal Access Token",
+	"githubTokenHelp": "Optional. Erhöht das Rate-Limit von 60 auf 5000 Anfragen/Stunde. Token benötigt keine Berechtigungen (public repos).",
+	"checkInterval": "Prüfintervall",
+	"checkIntervalHelp": "Wie oft auf Updates geprüft wird (in Sekunden). Minimum 600s (10 Min).",
+	"headerOptions": "Optionen",
+	"notifyOnUpdate": "Benachrichtigung bei verfügbarem Update",
+	"autoUpdate": "Globales Auto-Update",
+	"autoUpdateHelp": "Alle Adapter automatisch aktualisieren, sobald ein Update erkannt wird. Kann pro Adapter überschrieben werden.",
+	"headerAdapters": "Zu überwachende Adapter",
+	"adapters": "Adapter-Liste",
+	"adapterName": "Adapter-Name",
+	"githubRepo": "GitHub-Repo (user/repo)",
+	"channel": "Kanal",
+	"autoUpdateRow": "Auto-Update"
+}

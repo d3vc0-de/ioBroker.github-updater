@@ -1,0 +1,96 @@
+{
+	"i18n": true,
+	"type": "panel",
+	"items": {
+		"headerGitHub": {
+			"type": "header",
+			"text": "headerGitHub",
+			"size": 3,
+			"newLine": true,
+			"xs": 12
+		},
+		"githubToken": {
+			"type": "password",
+			"label": "githubToken",
+			"help": "githubTokenHelp",
+			"newLine": true,
+			"xs": 12, "sm": 12, "md": 8, "lg": 6, "xl": 5
+		},
+		"checkInterval": {
+			"type": "number",
+			"label": "checkInterval",
+			"help": "checkIntervalHelp",
+			"min": 600,
+			"max": 86400,
+			"step": 600,
+			"unit": "s",
+			"newLine": true,
+			"xs": 12, "sm": 6, "md": 4, "lg": 3, "xl": 3
+		},
+
+		"headerOptions": {
+			"type": "header",
+			"text": "headerOptions",
+			"size": 3,
+			"newLine": true,
+			"xs": 12
+		},
+		"notifyOnUpdate": {
+			"type": "checkbox",
+			"label": "notifyOnUpdate",
+			"newLine": true,
+			"xs": 12, "sm": 6, "md": 4, "lg": 3, "xl": 3
+		},
+		"autoUpdate": {
+			"type": "checkbox",
+			"label": "autoUpdate",
+			"help": "autoUpdateHelp",
+			"newLine": false,
+			"xs": 12, "sm": 6, "md": 4, "lg": 3, "xl": 3
+		},
+
+		"headerAdapters": {
+			"type": "header",
+			"text": "headerAdapters",
+			"size": 3,
+			"newLine": true,
+			"xs": 12
+		},
+		"adapters": {
+			"type": "table",
+			"label": "adapters",
+			"newLine": true,
+			"xs": 12,
+			"items": [
+				{
+					"name": "adapterName",
+					"type": "text",
+					"label": "adapterName",
+					"width": "25%"
+				},
+				{
+					"name": "githubRepo",
+					"type": "text",
+					"label": "githubRepo",
+					"width": "45%"
+				},
+				{
+					"name": "channel",
+					"type": "select",
+					"label": "channel",
+					"options": [
+						{ "value": "release", "label": "Release" },
+						{ "value": "tag",     "label": "Tag/Commit" }
+					],
+					"width": "20%"
+				},
+				{
+					"name": "autoUpdate",
+					"type": "checkbox",
+					"label": "autoUpdateRow",
+					"width": "10%"
+				}
+			]
+		}
+	}
+}
