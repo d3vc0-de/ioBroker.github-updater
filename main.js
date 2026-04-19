@@ -45,6 +45,7 @@ function githubGet(apiPath, token) {
         const req = https.get(options, (res) => {
             let body = '';
             res.on('data', chunk => (body += chunk));
+            res.on('error', reject);
             res.on('end', () => {
                 if (res.statusCode === 200) {
                     try { resolve(JSON.parse(body)); }
@@ -339,7 +340,12 @@ class GithubUpdater extends utils.Adapter {
         if (updateAvailable && this.config.notifyOnUpdate) {
             const msg = `Update verfügbar: ${adapterName} ${installedVersion} → ${latestVersion} (${releaseUrl})`;
             this.log.info(msg);
-            try { await this.sendNotificationAsync('github-updater', null, msg); } catch (_) {}
+            try {
+                // @ts-ignore
+                await this.sendNotificationAsync('github-updater', null, msg);
+            } catch (_) {
+                // Falls sendNotificationAsync nicht existiert (ältere js-controller)
+            }
         }
 
         if (updateAvailable && this.config.autoUpdate) {
@@ -414,6 +420,7 @@ class GithubUpdater extends utils.Adapter {
 
     async ensureAdapterObjects(adapterName) {
         const base = `adapters.${adapterName}`;
+        /** @type {any[]} */
         const defs = [
             { id: `${base}.installedVersion`, name: `${adapterName}: Installierte Version`, type: 'string',  role: 'text'      },
             { id: `${base}.latestVersion`,    name: `${adapterName}: Neueste Version`,       type: 'string',  role: 'text'      },
@@ -425,7 +432,14 @@ class GithubUpdater extends utils.Adapter {
         for (const o of defs) {
             await this.setObjectNotExistsAsync(o.id, {
                 type: 'state',
-                common: { name: o.name, type: o.type, role: o.role, read: true, write: false, def: o.type === 'boolean' ? false : '' },
+                common: {
+                    name: o.name,
+                    type: o.type,
+                    role: o.role,
+                    read: true,
+                    write: false,
+                    def: o.type === 'boolean' ? false : '',
+                },
                 native: {},
             });
         }

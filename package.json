@@ -1,18 +1,45 @@
 {
   "name": "iobroker.github-updater",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ioBroker Adapter zum Prüfen und Aktualisieren von manuell via GitHub installierten Adaptern",
   "author": {
     "name": "alex",
     "email": "d3vc0_de@proton.me"
   },
   "license": "MIT",
+  "keywords": [
+    "github",
+    "update",
+    "adapter",
+    "updater"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/d3vc0-de/ioBroker.github-updater.git"
+  },
+  "bugs": {
+    "url": "https://github.com/d3vc0-de/ioBroker.github-updater/issues"
+  },
   "platform": "Javascript/Node.js",
   "engines": {
     "node": ">= 20"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^3.3.2"
+  },
+  "devDependencies": {
+    "@alcalzone/release-script": "^5.1.1",
+    "@alcalzone/release-script-plugin-iobroker": "^5.1.2",
+    "@alcalzone/release-script-plugin-license": "^5.1.1",
+    "@alcalzone/release-script-plugin-manual-review": "^5.1.1",
+    "@iobroker/adapter-dev": "^1.5.0",
+    "@iobroker/dev-server": "^0.8.0",
+    "@iobroker/eslint-config": "^2.2.0",
+    "@iobroker/testing": "^5.2.2",
+    "@tsconfig/node20": "^20.1.9",
+    "@types/iobroker": "npm:@iobroker/types@^7.1.1",
+    "@types/node": "^20.19.39",
+    "typescript": "~5.9.3"
   },
   "main": "main.js",
   "files": [
@@ -23,6 +50,16 @@
     "main.js"
   ],
   "scripts": {
-    "test": "echo \"No tests defined\" && exit 0"
+    "test:js": "mocha --config test/mocharc.custom.json \"{!(node_modules|test)/**/*.test.js,*.test.js,test/**/test!(PackageFiles|Startup).js}\"",
+    "test:package": "mocha test/package --exit",
+    "test:integration": "mocha test/integration --exit",
+    "test": "npm run test:js && npm run test:package",
+    "check": "tsc --noEmit -p tsconfig.check.json",
+    "lint": "eslint -c eslint.config.mjs .",
+    "translate": "translate-adapter",
+    "release": "release-script",
+    "dev-server": "dev-server",
+    "setup": "dev-server setup",
+    "watch": "dev-server watch"
   }
 }

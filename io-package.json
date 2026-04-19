@@ -1,8 +1,12 @@
 {
 	"common": {
 		"name": "github-updater",
-		"version": "0.3.0",
+		"version": "0.4.0",
 		"news": {
+			"0.4.0": {
+				"en": "Add testing boilerplate, linting and type checking fixes",
+				"de": "Testing-Boilerplate, Linting und Korrekturen für die Typprüfung hinzugefügt"
+			},
 			"0.3.0": {
 				"en": "Fix detection via package-lock.json",
 				"de": "Erkennung via package-lock.json korrigiert"
@@ -39,6 +43,8 @@
 		},
 		"platform": "Javascript/Node.js",
 		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/d3vc0-de/ioBroker.github-updater/main/admin/github-updater.svg",
+		"readme": "https://github.com/d3vc0-de/ioBroker.github-updater/blob/main/README.md",
 		"loglevel": "info",
 		"tier": 3,
 		"mode": "daemon",
