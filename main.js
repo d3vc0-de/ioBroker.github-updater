@@ -138,7 +138,7 @@ function findIoBrokerRoot() {
 
 class GithubUpdater extends utils.Adapter {
 	/**
-	 * @param {Partial<utils.AdapterOptions>} [options]
+	 * @param {Partial<utils.AdapterOptions>} [options] - Adapter options
 	 */
 	constructor(options) {
 		super({ ...options, name: 'github-updater' });
@@ -190,8 +190,8 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {string} id
-	 * @param {ioBroker.State | null | undefined} state
+	 * @param {string} id - State ID
+	 * @param {ioBroker.State | null | undefined} state - State value
 	 */
 	async onStateChange(id, state) {
 		if (!state || state.ack) {
@@ -220,7 +220,7 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {ioBroker.Message} msg
+	 * @param {ioBroker.Message} msg - Message object
 	 */
 	async onMessage(msg) {
 		if (msg.command === 'getDetected') {
@@ -242,7 +242,7 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {() => void} callback
+	 * @param {() => void} callback - Callback function
 	 */
 	async onUnload(callback) {
 		try {
@@ -386,7 +386,7 @@ class GithubUpdater extends utils.Adapter {
 	}
 
 	/**
-	 * @param {any} param0
+	 * @param {any} param0 - Entry object
 	 */
 	async checkAdapter({ adapterName, githubRepo, installedCommit }) {
 		const token = this.config.githubToken || '';
@@ -471,8 +471,8 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {string} repo
-	 * @param {string} token
+	 * @param {string} repo - GitHub repository
+	 * @param {string} token - GitHub token
 	 */
 	async getLatestGithubVersion(repo, token) {
 		const cleanRepo = repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
@@ -515,8 +515,8 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {string} adapterName
-	 * @param {string} githubRepo
+	 * @param {string} adapterName - Adapter name
+	 * @param {string} githubRepo - GitHub repository
 	 */
 	async doUpdate(adapterName, githubRepo) {
 		const cleanRepo = githubRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
@@ -540,7 +540,7 @@ class GithubUpdater extends utils.Adapter {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * @param {string} adapterName
+	 * @param {string} adapterName - Adapter name
 	 */
 	async ensureAdapterObjects(adapterName) {
 		const base = `adapters.${adapterName}`;
