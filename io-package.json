@@ -81,8 +81,14 @@
 		],
 		"globalDependencies": [
 			{
-				"admin": ">=7.0.0"
+				"admin": ">=7.6.20"
 			}
+		],
+		"protectedNative": [
+			"githubToken"
+		],
+		"encryptedNative": [
+			"githubToken"
 		]
 	},
 	"native": {
