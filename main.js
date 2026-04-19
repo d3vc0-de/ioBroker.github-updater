@@ -567,7 +567,7 @@ class GithubUpdater extends utils.Adapter {
 				type: 'state',
 				common: {
 					name: o.name,
-					type: o.type,
+					type: /** @type {any} */ (o.type),
 					role: o.role,
 					read: true,
 					write: false,
