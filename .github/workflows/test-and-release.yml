@@ -50,6 +50,10 @@ jobs:
           os: ${{ matrix.os }}
           # Uncomment the following line if your adapter cannot be installed using 'npm ci'
           # install-command: 'npm install'
+          build: false
+          extra-tests: true
+          unit-test-command: npm run test:js
+          integration-test-command: npm run test:integration
 
 # TODO: To enable automatic npm releases, set up trusted publishing in your npm account
 # See https://docs.npmjs.com/trusted-publishers for more details
