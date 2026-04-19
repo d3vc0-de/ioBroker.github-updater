@@ -83,14 +83,14 @@
 			{
 				"admin": ">=7.6.20"
 			}
-		],
-		"protectedNative": [
-			"githubToken"
-		],
-		"encryptedNative": [
-			"githubToken"
 		]
 	},
+	"protectedNative": [
+		"githubToken"
+	],
+	"encryptedNative": [
+		"githubToken"
+	],
 	"native": {
 		"githubToken": "",
 		"checkInterval": 86400,
