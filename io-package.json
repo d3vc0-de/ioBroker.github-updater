@@ -22,11 +22,29 @@
 		},
 		"titleLang": {
 			"en": "GitHub Updater",
-			"de": "GitHub Updater"
+			"de": "GitHub Updater",
+			"ru": "GitHub Updater",
+			"pt": "GitHub Updater",
+			"nl": "GitHub Updater",
+			"fr": "GitHub Updater",
+			"it": "GitHub Updater",
+			"es": "GitHub Updater",
+			"pl": "GitHub Updater",
+			"uk": "GitHub Updater",
+			"zh-cn": "GitHub Updater"
 		},
 		"desc": {
 			"en": "Checks for updates of manually installed adapters from GitHub and optionally triggers the update",
-			"de": "Prüft auf Updates von manuell via GitHub installierten Adaptern und kann diese automatisch aktualisieren"
+			"de": "Prüft auf Updates von manuell via GitHub installierten Adaptern und kann diese automatisch aktualisieren",
+			"ru": "Проверяет наличие обновлений для адаптеров, установленных вручную из GitHub, и при необходимости запускает обновление",
+			"pt": "Verifica se há atualizações de adaptadores instalados manualmente a partir do GitHub e, opcionalmente, aciona a atualização",
+			"nl": "Controleert op updates van handmatig geïnstalleerde adapters van GitHub en activeert optioneel de update",
+			"fr": "Vérifie les mises à jour des adaptateurs installés manuellement à partir de GitHub et déclenche éventuellement la mise à jour",
+			"it": "Controlla gli aggiornamenti degli adapter installati manualmente da GitHub e, facoltativamente, attiva l'aggiornamento",
+			"es": "Busca actualizaciones de adaptadores instalados manualmente desde GitHub y, opcionalmente, activa la actualización",
+			"pl": "Sprawdza aktualizacje adapterów zainstalowanych ręcznie z GitHub i opcjonalnie uruchamia aktualizację",
+			"uk": "Перевіряє наявність оновлень адаптерів, встановлених вручную з GitHub, і, за бажанням, запускає оновлення",
+			"zh-cn": "检查从 GitHub 手动安装的适配器的更新，并可选择触发更新"
 		},
 		"authors": [
 			"alex <d3vc0_de@proton.me>"

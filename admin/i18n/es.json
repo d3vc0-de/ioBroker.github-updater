@@ -1,0 +1,16 @@
+{
+	"headerDetected": "Detected GitHub adapters",
+	"btnDetect": "Scan now",
+	"headerGitHub": "GitHub Settings",
+	"githubToken": "GitHub Personal Access Token",
+	"githubTokenHelp": "Optional. Increases the API rate limit from 60 to 5000 requests/hour. Token needs no permissions (public repos only).",
+	"checkInterval": "Check interval",
+	"checkIntervalHelp": "How often to check for updates (in seconds). Minimum 600 s (10 min).",
+	"headerOptions": "Options",
+	"notifyOnUpdate": "Notify on available update",
+	"autoUpdate": "Auto-update",
+	"autoUpdateHelp": "Automatically update all detected adapters as soon as an update is found.",
+	"headerExclude": "Exclusions",
+	"excludeAdapters": "Exclude adapters",
+	"excludeAdaptersHelp": "Comma-separated list of adapter names to skip, e.g. my-adapter,other-adapter"
+}
